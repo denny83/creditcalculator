@@ -1,0 +1,51 @@
+let chart;
+
+function calc() {
+
+    const data = {
+        amount: document.getElementById("amount").value,
+        rate: document.getElementById("rate").value,
+        months: document.getElementById("months").value,
+        startDate: document.getElementById("startDate").value
+    };
+
+    fetch("/calc", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+
+        const base = res.data.base;
+
+        const labels = base.map(x => x.month);
+        const interest = base.map(x => x.total_interest);
+        const balance = base.map(x => x.balance);
+
+        if (chart) chart.destroy();
+
+        chart = new Chart(document.getElementById("chart"), {
+            type: "line",
+            data: {
+                labels,
+                datasets: [
+                    { label: "Переплата", data: interest },
+                    { label: "Долг", data: balance }
+                ]
+            }
+        });
+
+        const last = base[base.length - 1];
+
+        document.getElementById("result").innerHTML = `
+            💰 Переплата: ${last.total_interest}<br>
+            📉 Остаток: ${last.balance}<br>
+            📊 Доля процентов: ${last.interest_share}%
+        `;
+
+        // 💣 АНАЛИТИЧЕСКАЯ ШКАЛА
+        document.getElementById("bar").style.width = last.interest_share + "%";
+
+    });
+}

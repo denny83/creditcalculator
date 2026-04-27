@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  credit-calculator:
+    build: .
+    container_name: credit-calc
+    ports:
+      - "8005:8005"
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
