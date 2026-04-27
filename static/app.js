@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     flatpickr("#startDate", {
         locale: "ru",
         dateFormat: "Y-m-d",
-        defaultDate: new Date(2026, 0, 1),
+        defaultDate: null,
         onChange: () => calculate()
     });
 
@@ -244,6 +244,23 @@ async function calculate() {
     const rate = parseFloat(document.getElementById('rate').value);
     let months = getMonths();
     const startDate = document.getElementById('startDate').value;
+    // Проверка на пустые значения
+    if (isNaN(amount) || amount <= 0) {
+        console.log('Введите сумму кредита');
+        return;
+    }
+    if (isNaN(rate) || rate <= 0) {
+        console.log('Введите процентную ставку');
+        return;
+    }
+    if (isNaN(months) || months <= 0) {
+        console.log('Введите срок кредита');
+        return;
+    }
+    if (!startDate) {
+        console.log('Выберите дату получения');
+        return;
+    }
     currentStartDate = startDate;
     
     if (isNaN(amount) || isNaN(rate) || isNaN(months)) return;
