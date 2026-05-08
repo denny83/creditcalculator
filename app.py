@@ -14,7 +14,11 @@ def annuity_payment(amount, annual_rate, months):
     return amount * (r * (1 + r) ** months) / ((1 + r) ** months - 1)
 
 
-def calculate_schedule(amount, rate, months, early_payments,
+def calculate_schedule(amount,
+                       rate,
+                       months,
+                       monthly_payments,
+                       one_time_payments,
                        payment_type='extra',
                        reduce_type='payment',
                        one_time_types=None):
@@ -44,7 +48,14 @@ def calculate_schedule(amount, rate, months, early_payments,
         interest = balance * monthly_rate
         total_interest += interest
 
-        extra_amount = early_payments.get(month, 0)
+        # =========================
+        # Ежемесячные + разовые
+        # =========================
+
+        monthly_extra = monthly_payments.get(month, 0)
+        one_time_extra = one_time_payments.get(month, 0)
+
+        extra_amount = monthly_extra + one_time_extra
 
         # =========================
         # Режим текущего месяца
@@ -52,6 +63,8 @@ def calculate_schedule(amount, rate, months, early_payments,
 
         month_mode = current_mode
 
+        # Разовый платеж может
+        # временно изменить режим
         if one_time_types and month in one_time_types:
             month_mode = one_time_types[month]
 
@@ -61,7 +74,8 @@ def calculate_schedule(amount, rate, months, early_payments,
 
         if payment_type == 'full':
 
-            # Пользователь указал ПОЛНЫЙ платеж
+            # Пользователь указал
+            # ПОЛНЫЙ платеж месяца
             actual_payment = extra_amount
 
             # Какая часть является досрочкой
@@ -73,7 +87,10 @@ def calculate_schedule(amount, rate, months, early_payments,
         else:
 
             # Сверх обязательного
-            actual_payment = required_payment + extra_amount
+            actual_payment = (
+                required_payment +
+                extra_amount
+            )
 
             real_extra = extra_amount
 
@@ -129,8 +146,9 @@ def calculate_schedule(amount, rate, months, early_payments,
             # Платеж сохраняется
             pass
 
-        # Запоминаем режим
-        current_mode = month_mode
+        # Возвращаем основной режим
+        # после разового платежа
+        current_mode = reduce_type
 
         month += 1
 
@@ -145,38 +163,66 @@ def index():
 @app.route("/calc", methods=["POST"])
 def calc():
     try:
+
         data = request.json
 
         amount = float(data['amount'])
         rate = float(data['rate'])
         months = int(data['months'])
 
-        payment_type = data.get('paymentType', 'extra')
-        reduce_type = data.get('reduceType', 'payment')
+        payment_type = data.get(
+            'paymentType',
+            'extra'
+        )
 
-        early_payments = {}
+        reduce_type = data.get(
+            'reduceType',
+            'payment'
+        )
+
+        monthly_payments = {}
+        one_time_payments = {}
         one_time_types = {}
 
-        # Ежемесячные досрочные платежи
-        if data.get('monthly_enabled'):
-            monthly_amount = float(data.get('monthly_amount', 0))
-            for m in range(1, months + 1):
-                early_payments[m] = early_payments.get(m, 0) + monthly_amount
+        # =========================
+        # Ежемесячные досрочки
+        # =========================
 
-        # Разовые платежи
+        if data.get('monthly_enabled'):
+
+            monthly_amount = float(
+                data.get('monthly_amount', 0)
+            )
+
+            for m in range(1, months + 1):
+
+                monthly_payments[m] = monthly_amount
+
+        # =========================
+        # Разовые досрочки
+        # =========================
+
         for ot in data.get('one_time', []):
+
             m = int(ot['month'])
             amt = float(ot['amount'])
-            ot_type = ot.get('type', 'payment')
+
+            ot_type = ot.get(
+                'type',
+                reduce_type
+            )
+
             if 1 <= m <= months:
-                early_payments[m] = early_payments.get(m, 0) + amt
+
+                one_time_payments[m] = amt
                 one_time_types[m] = ot_type
 
         schedule, total_interest = calculate_schedule(
             amount,
             rate,
             months,
-            early_payments,
+            monthly_payments,
+            one_time_payments,
             payment_type,
             reduce_type,
             one_time_types
@@ -186,13 +232,20 @@ def calc():
             'schedule': schedule,
             'months': len(schedule),
             'interest': round(total_interest, 2),
-            'total_paid': round(amount + total_interest, 2),
+            'total_paid': round(
+                amount + total_interest,
+                2
+            ),
             'principal': amount
         })
 
     except Exception as e:
+
         print(f"Error in calc: {e}")
-        return jsonify({'error': str(e)}), 400
+
+        return jsonify({
+            'error': str(e)
+        }), 400
 
 
 @app.route("/compare", methods=["POST"])
