@@ -25,19 +25,24 @@ def calculate_schedule(amount, rate, months, early_payments,
 
     current_payment = annuity_payment(amount, rate, months)
 
+    # Текущий режим:
+    # payment -> уменьшаем платеж
+    # term -> уменьшаем срок
+    current_reduce_mode = reduce_type
+
     month = 1
 
     while balance > 0.01 and month <= 1200:
+
         interest = balance * monthly_rate
         total_interest += interest
 
         extra_amount = early_payments.get(month, 0)
 
-        # Тип уменьшения для текущего месяца
-        monthly_reduce_type = reduce_type
-
+        # Если для этого месяца указан свой режим —
+        # переключаем текущий режим
         if one_time_types and month in one_time_types:
-            monthly_reduce_type = one_time_types[month]
+            current_reduce_mode = one_time_types[month]
 
         # Фактический платеж
         if payment_type == 'full' and extra_amount > 0:
@@ -72,21 +77,19 @@ def calculate_schedule(amount, rate, months, early_payments,
         if balance <= 0.01:
             break
 
-        # Остаток месяцев
         remaining_months = max(1, months - month)
 
-        # ВАЖНО:
-        # payment -> уменьшаем платеж
-        # term -> сохраняем платеж, уменьшаем срок
-
-        if monthly_reduce_type == 'payment':
+        # Если режим payment —
+        # пересчитываем платеж
+        if current_reduce_mode == 'payment':
             current_payment = annuity_payment(
                 balance,
                 rate,
                 remaining_months
             )
 
-        # Если term — current_payment НЕ меняем
+        # Если режим term —
+        # платеж остается прежним
 
         month += 1
 
