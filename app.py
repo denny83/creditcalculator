@@ -17,16 +17,13 @@ def annuity_payment(amount, annual_rate, months):
 def calculate_schedule(amount, rate, months, early_payments,
                        payment_type='extra', reduce_type='payment',
                        one_time_types=None):
-    
+
     monthly_rate = rate / 12 / 100
     balance = amount
     total_interest = 0
     schedule = []
 
     current_payment = annuity_payment(amount, rate, months)
-    
-    # Флаг, что был выбран тип "term" и платеж зафиксирован
-    payment_fixed = False
 
     month = 1
 
@@ -35,20 +32,17 @@ def calculate_schedule(amount, rate, months, early_payments,
         total_interest += interest
 
         extra_amount = early_payments.get(month, 0)
-        
-        # Определяем тип уменьшения для этого месяца
+
+        # Тип уменьшения для текущего месяца
         monthly_reduce_type = reduce_type
+
         if one_time_types and month in one_time_types:
             monthly_reduce_type = one_time_types[month]
-            if monthly_reduce_type == 'term' and not payment_fixed:
-                payment_fixed = True
 
-        # Определяем фактический платеж в зависимости от payment_type
+        # Фактический платеж
         if payment_type == 'full' and extra_amount > 0:
-            # Указать платеж целиком - весь платеж = extra_amount
             actual_payment = extra_amount
         else:
-            # Указать сумму сверх обязательного платежа
             actual_payment = current_payment + extra_amount
 
         if actual_payment < interest:
@@ -78,13 +72,21 @@ def calculate_schedule(amount, rate, months, early_payments,
         if balance <= 0.01:
             break
 
-        # Пересчет для следующего месяца
+        # Остаток месяцев
         remaining_months = max(1, months - month)
-        
-        # Если платеж зафиксирован (тип 'term') - НЕ меняем платеж
-        if not payment_fixed and monthly_reduce_type == 'payment':
-            current_payment = annuity_payment(balance, rate, remaining_months)
-        # Иначе если payment_fixed == True, current_payment НЕ меняется
+
+        # ВАЖНО:
+        # payment -> уменьшаем платеж
+        # term -> сохраняем платеж, уменьшаем срок
+
+        if monthly_reduce_type == 'payment':
+            current_payment = annuity_payment(
+                balance,
+                rate,
+                remaining_months
+            )
+
+        # Если term — current_payment НЕ меняем
 
         month += 1
 
