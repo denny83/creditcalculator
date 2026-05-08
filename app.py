@@ -15,16 +15,12 @@ def annuity_payment(amount, annual_rate, months):
 
 
 def calculate_schedule(amount, rate, months, early_payments,
-                       payment_type='extra', reduce_type='payment',
-                       one_time_types=None):
+    required_payment = annuity_payment(amount, rate, months)
 
-    monthly_rate = rate / 12 / 100
-    balance = amount
-    total_interest = 0
-    schedule = []
-
-    # Базовый обязательный платеж
-    current_payment = annuity_payment(amount, rate, months)
+    # Текущий режим:
+    # payment -> уменьшаем платеж
+    # term -> уменьшаем срок
+    current_mode = reduce_type
 
     month = 1
 
@@ -35,29 +31,32 @@ def calculate_schedule(amount, rate, months, early_payments,
 
         extra_amount = early_payments.get(month, 0)
 
-        # Тип уменьшения
-        current_month_type = reduce_type
+        # ===== Определяем режим текущего месяца =====
+
+        month_mode = current_mode
 
         if one_time_types and month in one_time_types:
-            current_month_type = one_time_types[month]
+            month_mode = one_time_types[month]
 
-        # ===== РЕАЛЬНЫЙ ПЛАТЕЖ =====
+        # ===== Формируем фактический платеж =====
 
-        if payment_type == 'full' and extra_amount > 0:
+        if payment_type == 'full':
 
-            # Пользователь указал ВЕСЬ платеж
+            # Пользователь указал ПОЛНЫЙ платеж месяца
+            # например 100000
             actual_payment = extra_amount
 
-            # Досрочка внутри него
-            real_extra = max(0, actual_payment - current_payment)
+            # Обязательный платеж внутри него
+            real_extra = max(0, actual_payment - required_payment)
 
         else:
 
-            # Обязательный + досрочка
-            actual_payment = current_payment + extra_amount
+            # Пользователь указал сумму СВЕРХ обязательного
+            actual_payment = required_payment + extra_amount
 
             real_extra = extra_amount
 
+        # Защита
         if actual_payment < interest:
             actual_payment = interest + 0.01
 
@@ -74,7 +73,7 @@ def calculate_schedule(amount, rate, months, early_payments,
 
         schedule.append({
             'month': month,
-            'payment': round(current_payment, 2),
+            'payment': round(required_payment, 2),
             'extra': round(real_extra, 2),
             'interest': round(interest, 2),
             'principal': round(principal, 2),
@@ -89,19 +88,23 @@ def calculate_schedule(amount, rate, months, early_payments,
 
         # ===== ПЕРЕСЧЕТ =====
 
-        if current_month_type == 'payment':
+        if month_mode == 'payment':
 
-            # Уменьшаем платеж
-            current_payment = annuity_payment(
+            # Уменьшаем обязательный платеж
+            required_payment = annuity_payment(
                 balance,
                 rate,
                 remaining_months
             )
 
-        elif current_month_type == 'term':
+        elif month_mode == 'term':
 
-            # Фиксируем ПОЛНЫЙ платеж
-            current_payment = actual_payment
+            # Платеж НЕ меняется
+            # сохраняем текущий обязательный платеж
+            pass
+
+        # Запоминаем режим для следующих месяцев
+        current_mode = month_mode
 
         month += 1
 
