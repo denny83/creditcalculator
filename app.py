@@ -25,8 +25,8 @@ def calculate_schedule(amount, rate, months, early_payments,
 
     current_payment = annuity_payment(amount, rate, months)
 
-    # Флаг фиксации платежа
-    fixed_payment = False
+    # Текущий режим пересчета
+    current_mode = reduce_type
 
     month = 1
 
@@ -37,21 +37,16 @@ def calculate_schedule(amount, rate, months, early_payments,
 
         extra_amount = early_payments.get(month, 0)
 
-        # Тип для текущего месяца
-        monthly_reduce_type = reduce_type
+        # Тип досрочки для текущего месяца
+        current_month_type = None
 
         if one_time_types and month in one_time_types:
-            monthly_reduce_type = one_time_types[month]
+            current_month_type = one_time_types[month]
 
-        # Если был выбран TERM —
-        # фиксируем платеж
-        if monthly_reduce_type == 'term':
-            fixed_payment = True
-
-        # Если PAYMENT —
-        # снова разрешаем уменьшение платежа
-        if monthly_reduce_type == 'payment':
-            fixed_payment = False
+        # Если нет разового —
+        # используем общий режим
+        if current_month_type is None:
+            current_month_type = current_mode
 
         # Фактический платеж
         if payment_type == 'full' and extra_amount > 0:
@@ -88,17 +83,22 @@ def calculate_schedule(amount, rate, months, early_payments,
 
         remaining_months = max(1, months - month)
 
-        # Если платеж НЕ зафиксирован —
-        # уменьшаем платеж
-        if not fixed_payment:
+        # ===== ГЛАВНАЯ ЛОГИКА =====
+
+        if current_month_type == 'payment':
+            # Уменьшаем платеж
             current_payment = annuity_payment(
                 balance,
                 rate,
                 remaining_months
             )
 
-        # Если fixed_payment=True —
-        # платеж сохраняется, уменьшается срок
+        elif current_month_type == 'term':
+            # Платеж НЕ меняем
+            pass
+
+        # Сохраняем режим для следующих месяцев
+        current_mode = current_month_type
 
         month += 1
 
